@@ -378,6 +378,9 @@ class AlphaBetaPlayer(IsolationPlayer):
             # Iterative deepening will continuously run, one level deeper
             # each time until there is a winner or timeout
             while depth < float("inf"):
+                if self.time_left() < self.TIMER_THRESHOLD:
+                    raise SearchTimeout()
+                # Start at 1 instead of 0
                 depth += 1
                 best_move = self.alphabeta(game, depth, best_move)
 
@@ -389,7 +392,7 @@ class AlphaBetaPlayer(IsolationPlayer):
         # Return the best move from the last completed search iteration
         return best_move
 
-    def alphabeta(self, game, depth, best_move, alpha=float("-inf"), beta=float("inf")):
+    def alphabeta(self, game, depth, best_move=(-1, -1), alpha=float("-inf"), beta=float("inf")):
         """Implement depth-limited minimax search with alpha-beta pruning as
         described in the lectures.
 
@@ -435,7 +438,7 @@ class AlphaBetaPlayer(IsolationPlayer):
                 testing.
         """
 
-        def min_play(game, alpha, beta, depth):
+        def find_score_of_minimizing_move(game, alpha, beta, depth):
             ## End if time runs out
             if self.time_left() < self.TIMER_THRESHOLD:
                 raise SearchTimeout()
@@ -446,8 +449,8 @@ class AlphaBetaPlayer(IsolationPlayer):
             score = float('inf')
             for move in moves:
                 clone = game.forecast_move(move)
-                # max_play is called here since we're alternate players
-                score = min(score, max_play(clone, alpha, beta, depth - 1))
+                # alpha is called here since we alternate players
+                score = min(score, find_score_of_maximizing_move(clone, alpha, beta, depth - 1))
                 ## Check each node to see if we have a new min lower than our current alpha
                 if score <= alpha:
                     return score
@@ -455,7 +458,7 @@ class AlphaBetaPlayer(IsolationPlayer):
                 beta = min(beta, score)
             return score
 
-        def max_play(game, alpha, beta, depth):
+        def find_score_of_maximizing_move(game, alpha, beta, depth):
             ## End if time runs out
             if self.time_left() < self.TIMER_THRESHOLD:
                 raise SearchTimeout()
@@ -466,8 +469,8 @@ class AlphaBetaPlayer(IsolationPlayer):
             score = float('-inf')
             for move in moves:
                 clone = game.forecast_move(move)
-                # min_play is called here since we're alternate players
-                score = max(score, min_play(clone, alpha, beta, depth - 1))
+                # beta is called here since we alternate players
+                score = max(score, find_score_of_minimizing_move(clone, alpha, beta, depth - 1))
                 if score >= beta:
                     return score
                 # Set alpha to whichever is larger
@@ -475,18 +478,15 @@ class AlphaBetaPlayer(IsolationPlayer):
             return score
 
         # End if time runs out
-        if self.time_left() < self.TIMER_THRESHOLD:
-            raise SearchTimeout()
+
         # Initialize best_move to (-1, -1) if this is the first iteration of ID
-        if not best_move:
-            best_move = (-1, -1)
         moves = game.get_legal_moves()
         best_score = float('-inf')
         for move in moves:
             clone = game.forecast_move(move)
             # Start with min_play, since opponent turn comes after our
             # hypothetical move.
-            score = min_play(clone, best_score, beta, depth - 1)
+            score = find_score_of_minimizing_move(clone, best_score, beta, depth - 1)
             # Keep track of the score that is returned from each tree
             if score > best_score:
                 best_move = move
